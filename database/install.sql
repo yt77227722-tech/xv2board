@@ -494,6 +494,7 @@ CREATE TABLE `v2_stat_user` (
                                 PRIMARY KEY (`id`),
                                 UNIQUE KEY `server_rate_user_id_record_at` (`server_rate`,`user_id`,`record_at`),
                                 KEY `user_id` (`user_id`),
+                                KEY `stat_user_recent_idx` (`user_id`, `record_type`, `record_at`),
                                 KEY `record_at` (`record_at`),
                                 KEY `server_rate` (`server_rate`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -557,6 +558,7 @@ CREATE TABLE `v2_user` (
                            `remind_expire` tinyint(4) DEFAULT '1',
                            `remind_traffic` tinyint(4) DEFAULT '1',
                            `token` char(32) NOT NULL,
+                           `app_legacy_token_disabled` tinyint unsigned NOT NULL DEFAULT '1',
                            `expired_at` bigint(20) DEFAULT '0',
                            `remarks` text,
                            `created_at` int(11) NOT NULL,
@@ -582,7 +584,8 @@ CREATE TABLE `v2_subscribe_log` (
   PRIMARY KEY (`id`),
   KEY `user_id_idx` (`user_id`),
     KEY `email_idx` (`email`),
-    KEY `subscribe_created_user_idx` (`created_at`, `user_id`)
+    KEY `subscribe_created_user_idx` (`created_at`, `user_id`),
+    KEY `subscribe_user_created_idx` (`user_id`, `created_at`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `v2_subscription_analysis_marks` (
@@ -616,7 +619,9 @@ CREATE TABLE `v2_user_connect_log` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `unique_user_ip` (`user_id`, `ip`)
+  UNIQUE KEY `unique_user_ip` (`user_id`, `ip`),
+  KEY `connect_updated_user_idx` (`updated_at`, `user_id`),
+  KEY `connect_user_updated_idx` (`user_id`, `updated_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 

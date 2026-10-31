@@ -314,7 +314,8 @@ class AppClientAuthService
             $accountStatus = $this->accountStatusService->checkAccountStatus($user, $deviceId);
         }
         $user->last_login_at = time(); $user->save();
-        return $this->responseAdapter->buildUserResponse($user, $deviceId, $accountStatus);
+        $loginToken = (new AuthService($user))->generateAppToken($request);
+        return $this->responseAdapter->buildUserResponse($user, $deviceId, $accountStatus, $loginToken);
     }
     public function sync($user, Request $request)
     {
@@ -337,7 +338,7 @@ class AppClientAuthService
             $deviceBindResult = $this->deviceService->handleDeviceBind($user, $request);
             if ($deviceBindResult['status'] === 0) return response()->json($deviceBindResult);
         }
-        return $this->responseAdapter->buildUserResponse($user, $deviceId, $accountStatus);
+        return $this->responseAdapter->buildUserResponse($user, $deviceId, $accountStatus, $request->input('token'));
     }
     public function checkStatus($user, Request $request)
     {
@@ -371,9 +372,7 @@ class AppClientAuthService
     }
     public function getTempToken($user, Request $request)
     {
-        $code = Helper::guid();
-        $key = CacheKey::get('TEMP_TOKEN', $code);
-        Cache::put($key, $user->id, 60);
+        $code = AuthService::createLoginCode($user);
         return response(['status' => 1, 'data' => $code]);
     }
     public function checkUpdate(Request $request)

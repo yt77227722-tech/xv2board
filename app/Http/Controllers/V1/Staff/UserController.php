@@ -9,6 +9,7 @@ use App\Jobs\SendMassEmailJob;
 use App\Models\Plan;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
@@ -53,35 +54,29 @@ class UserController extends Controller
     public function update(UserUpdate $request)
     {
         $params = $request->validated();
-        $user = User::find($request->input('id'));
-        if (!$user) {
-            abort(500, '用户不存在');
-        }
-        if (User::where('email', $params['email'])->first() && $user->email !== $params['email']) {
-            abort(500, '邮箱已被使用');
-        }
-        if (isset($params['password'])) {
-            $params['password'] = password_hash($params['password'], PASSWORD_DEFAULT);
-            $params['password_algo'] = NULL;
-        } else {
-            unset($params['password']);
-        }
-        if (isset($params['plan_id'])) {
-            $plan = Plan::find($params['plan_id']);
-            if (!$plan) {
-                abort(500, '订阅计划不存在');
+        return DB::transaction(function () use ($params) {
+            $user = User::where('is_admin', 0)->where('is_staff', 0)
+                ->whereKey($params['id'])->lockForUpdate()->first();
+            if (!$user) abort(403, '无权修改此账号');
+            unset($params['id']);
+            if (User::where('email', $params['email'])->exists() && $user->email !== $params['email']) {
+                abort(500, '邮箱已被使用');
             }
-            $params['group_id'] = $plan->group_id;
-        }
-
-        try {
-            $user->update($params);
-        } catch (\Exception $e) {
-            abort(500, '保存失败');
-        }
-        return response([
-            'data' => true
-        ]);
+            if (isset($params['password'])) {
+                $params['password'] = password_hash($params['password'], PASSWORD_DEFAULT);
+                $params['password_algo'] = null;
+                $params['password_salt'] = null;
+            } else {
+                unset($params['password']);
+            }
+            if (isset($params['plan_id'])) {
+                $plan = Plan::find($params['plan_id']);
+                if (!$plan) abort(500, '订阅计划不存在');
+                $params['group_id'] = $plan->group_id;
+            }
+            if (!$user->update($params)) abort(500, '保存失败');
+            return response(['data' => true]);
+        });
     }
 
     public function sendMail(UserSendMail $request)
@@ -121,14 +116,31 @@ class UserController extends Controller
 
     public function ban(Request $request)
     {
+        $request->validate([
+            'filter' => 'required|array|min:1',
+            'filter.*.key' => 'required|in:id,email,transfer_enable,device_limit,d,expired_at,uuid,token,invite_by_email,invite_user_id,plan_id,banned,remarks',
+            'filter.*.condition' => 'required|in:>,<,=,>=,<=,模糊,!=',
+            'filter.*.value' => ['required', function ($attribute, $value, $fail) {
+                if (!is_string($value) && !is_numeric($value)) {
+                    $fail('过滤值必须是字符串或数字');
+                }
+            }],
+        ]);
+
         $sortType = in_array($request->input('sort_type'), ['ASC', 'DESC']) ? $request->input('sort_type') : 'DESC';
         $sort = $request->input('sort') ? $request->input('sort') : 'created_at';
-        $builder = User::orderBy($sort, $sortType);
+        $builder = User::where('is_admin', 0)
+            ->where('is_staff', 0)
+            ->orderBy($sort, $sortType);
         $this->filter($request, $builder);
         try {
-            $builder->update([
-                'banned' => 1
-            ]);
+            // Model security hooks must run for every affected account.
+            $builder->reorder('id')->chunkById(200, function ($users) {
+                foreach ($users as $user) {
+                    $user->banned = 1;
+                    $user->saveOrFail();
+                }
+            });
         } catch (\Exception $e) {
             abort(500, '处理失败');
         }
