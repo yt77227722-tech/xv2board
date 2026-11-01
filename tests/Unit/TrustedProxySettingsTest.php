@@ -137,7 +137,6 @@ class TrustedProxySettingsTest extends TestCase
         File::shouldReceive('exists')->with(base_path('bootstrap/cache/config.php'))->andReturn(false);
         Artisan::swap(Mockery::mock(\Illuminate\Contracts\Console\Kernel::class));
         Artisan::shouldReceive('call')->once()->with('config:cache')->andReturn(0);
-        Cache::shouldReceive('has')->with('WEBMANPID')->andReturn(false);
         $response = (new ConfigController())->save($request);
         $this->assertTrue($response->getOriginalContent()['data']);
         $this->assertSame("<?php\n return " . var_export([
@@ -178,7 +177,7 @@ class TrustedProxySettingsTest extends TestCase
     {
         $middleware = new TrustProxies();
         foreach (['', '*', ['127.0.0.1']] as $value) {
-            Request::setTrustedProxies(['10.0.0.0/24'], Request::HEADER_X_FORWARDED_ALL);
+            Request::setTrustedProxies(['10.0.0.0/24'], Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_HOST | Request::HEADER_X_FORWARDED_PROTO | Request::HEADER_X_FORWARDED_PORT);
             config(['v2board.trusted_proxies' => $value]);
             $request = Request::create('/', 'GET', [], [], [], ['REMOTE_ADDR' => '10.0.0.2', 'HTTP_X_FORWARDED_FOR' => '203.0.113.7']);
             $this->assertSame('10.0.0.2', $middleware->handle($request, fn ($request) => $request->getClientIp()));
