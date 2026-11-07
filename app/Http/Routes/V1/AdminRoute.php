@@ -25,6 +25,9 @@ class AdminRoute
             $router->post('/plan/update', 'V1\\Admin\\PlanController@update');
             $router->post('/plan/sort', 'V1\\Admin\\PlanController@sort');
             // Server
+            $router->get('/server/client-ua-group/fetch', 'V1\\Admin\\Server\\ClientUaGroupController@fetch');
+            $router->post('/server/client-ua-group/save', 'V1\\Admin\\Server\\ClientUaGroupController@save');
+            $router->post('/server/client-ua-group/drop', 'V1\\Admin\\Server\\ClientUaGroupController@drop');
             $router->get ('/server/group/fetch', 'V1\\Admin\\Server\\GroupController@fetch');
             $router->post('/server/group/save', 'V1\\Admin\\Server\\GroupController@save');
             $router->post('/server/group/drop', 'V1\\Admin\\Server\\GroupController@drop');
@@ -85,14 +88,6 @@ class AdminRoute
                 $router->post('drop', 'V1\\Admin\\Server\\AnyTLSController@drop');
                 $router->post('update', 'V1\\Admin\\Server\\AnyTLSController@update');
                 $router->post('copy', 'V1\\Admin\\Server\\AnyTLSController@copy');
-            });
-            $router->group([
-                'prefix' => 'server/v2node'
-            ], function ($router) {
-                $router->post('save', 'V1\\Admin\\Server\\V2nodeController@save');
-                $router->post('drop', 'V1\\Admin\\Server\\V2nodeController@drop');
-                $router->post('update', 'V1\\Admin\\Server\\V2nodeController@update');
-                $router->post('copy', 'V1\\Admin\\Server\\V2nodeController@copy');
             });
             // Order
             $router->get ('/order/fetch', 'V1\\Admin\\OrderController@fetch');
